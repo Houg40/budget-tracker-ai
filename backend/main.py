@@ -1,12 +1,15 @@
+import calendar
+from datetime import date
 from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from database import get_session
 from models import Transaction, Account, Category
-from schemas import TransactionCreate, TransactionUpdate
+from schemas import TransactionCreate, TransactionUpdate, CategorySummary, DailySummary
 
 app = FastAPI(title="Budget Tracker AI API")
 
@@ -27,6 +30,56 @@ def health_check():
 @app.get("/categories", response_model=List[Category])
 def list_categories(session: Session = Depends(get_session)):
     return session.exec(select(Category)).all()
+
+
+@app.get("/transactions/summary/by-category", response_model=List[CategorySummary])
+def summary_by_category(
+    month: Optional[str] = Query(default=None, description="YYYY-MM, defaults to current month"),
+    session: Session = Depends(get_session),
+):
+    if month:
+        year, mon = map(int, month.split("-"))
+    else:
+        today = date.today()
+        year, mon = today.year, today.month
+
+    start = date(year, mon, 1)
+    end = date(year, mon, calendar.monthrange(year, mon)[1])
+
+    statement = (
+        select(Category.name, func.sum(Transaction.amount))
+        .select_from(Transaction)
+        .join(Category, Transaction.category_id == Category.id, isouter=True)
+        .where(Transaction.transaction_date >= start, Transaction.transaction_date <= end)
+        .group_by(Category.name)
+        .order_by(func.sum(Transaction.amount).desc())
+    )
+    results = session.exec(statement).all()
+    return [CategorySummary(category=name or "Uncategorized", total=total) for name, total in results]
+
+
+@app.get("/transactions/summary/by-date", response_model=List[DailySummary])
+def summary_by_date(
+    month: Optional[str] = Query(default=None, description="YYYY-MM, defaults to current month"),
+    session: Session = Depends(get_session),
+):
+    if month:
+        year, mon = map(int, month.split("-"))
+    else:
+        today = date.today()
+        year, mon = today.year, today.month
+
+    start = date(year, mon, 1)
+    end = date(year, mon, calendar.monthrange(year, mon)[1])
+
+    statement = (
+        select(Transaction.transaction_date, func.sum(Transaction.amount))
+        .where(Transaction.transaction_date >= start, Transaction.transaction_date <= end)
+        .group_by(Transaction.transaction_date)
+        .order_by(Transaction.transaction_date)
+    )
+    results = session.exec(statement).all()
+    return [DailySummary(date=d, total=total) for d, total in results]
 
 
 @app.post("/transactions", response_model=Transaction)

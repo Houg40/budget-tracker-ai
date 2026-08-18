@@ -1,4 +1,4 @@
-import { Category, Transaction, TransactionCreateInput } from "./types";
+import { Category, Transaction, TransactionCreateInput, CategorySummary, DailySummary } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
@@ -47,4 +47,20 @@ export async function updateTransactionCategory(id: number, categoryId: number):
 export async function deleteTransaction(id: number): Promise<void> {
   const res = await fetch(`${API_URL}/transactions/${id}`, { method: "DELETE" });
   return handleResponse<void>(res);
+}
+
+export async function getCategorySummary(month?: string): Promise<CategorySummary[]> {
+  const url = month
+    ? `${API_URL}/transactions/summary/by-category?month=${month}`
+    : `${API_URL}/transactions/summary/by-category`;
+  const res = await fetch(url);
+  return handleResponse<CategorySummary[]>(res);
+}
+
+export async function getDailySummary(month?: string): Promise<DailySummary[]> {
+  const url = month
+    ? `${API_URL}/transactions/summary/by-date?month=${month}`
+    : `${API_URL}/transactions/summary/by-date`;
+  const res = await fetch(url);
+  return handleResponse<DailySummary[]>(res);
 }

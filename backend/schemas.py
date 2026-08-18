@@ -18,3 +18,13 @@ class TransactionUpdate(SQLModel):
     amount: Optional[Decimal] = None
     transaction_date: Optional[date] = None
     category_id: Optional[int] = None
+
+
+class CategorySummary(SQLModel):
+    category: str
+    total: Decimal
+
+
+class DailySummary(SQLModel):
+    date: date
+    total: Decimal
