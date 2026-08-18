@@ -1,18 +1,32 @@
 from typing import List, Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 
 from database import get_session
-from models import Transaction, Account
+from models import Transaction, Account, Category
 from schemas import TransactionCreate, TransactionUpdate
 
 app = FastAPI(title="Budget Tracker AI API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/categories", response_model=List[Category])
+def list_categories(session: Session = Depends(get_session)):
+    return session.exec(select(Category)).all()
 
 
 @app.post("/transactions", response_model=Transaction)

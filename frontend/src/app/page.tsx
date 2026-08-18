@@ -1,69 +1,181 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, FormEvent } from "react";
+import {
+  getTransactions,
+  getCategories,
+  createTransaction,
+  updateTransactionCategory,
+  deleteTransaction,
+} from "@/lib/api";
+import { Transaction, Category } from "@/lib/types";
+
+const DEFAULT_ACCOUNT_ID = 1;
 
 export default function Home() {
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+
+  async function loadData() {
+    try {
+      setLoading(true);
+      setError(null);
+      const [txns, cats] = await Promise.all([getTransactions(), getCategories()]);
+      setTransactions(txns);
+      setCategories(cats);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong loading data.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  async function handleAddTransaction(e: FormEvent) {
+    e.preventDefault();
+    if (!description || !amount || !date) return;
+
+    try {
+      await createTransaction({
+        account_id: DEFAULT_ACCOUNT_ID,
+        description,
+        amount: parseFloat(amount),
+        transaction_date: date,
+      });
+      setDescription("");
+      setAmount("");
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add transaction.");
+    }
+  }
+
+  async function handleCategoryChange(transactionId: number, categoryId: number) {
+    try {
+      await updateTransactionCategory(transactionId, categoryId);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update category.");
+    }
+  }
+
+  async function handleDelete(transactionId: number) {
+    try {
+      await deleteTransaction(transactionId);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete transaction.");
+    }
+  }
+
+  function categoryName(categoryId: number | null) {
+    if (categoryId === null) return "Uncategorized";
+    return categories.find((c) => c.id === categoryId)?.name ?? "Uncategorized";
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <main className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-2xl font-bold mb-6">Budget Tracker</h1>
+
+      {error && (
+        <div className="bg-red-900 border border-red-700 text-red-100 rounded p-3 mb-4">
+          {error}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      <form onSubmit={handleAddTransaction} className="flex flex-wrap gap-2 mb-8 items-end">
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-400">Description</label>
+          <input
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            required
+          />
         </div>
-      </main>
-    </div>
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-400">Amount</label>
+          <input
+            type="number"
+            step="0.01"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1 w-28"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            required
+          />
+        </div>
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-400">Date</label>
+          <input
+            type="date"
+            className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <button type="submit" className="bg-blue-600 hover:bg-blue-500 rounded px-4 py-1 h-9">
+          Add Transaction
+        </button>
+      </form>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-gray-700 text-gray-400 text-sm">
+              <th className="py-2">Date</th>
+              <th className="py-2">Description</th>
+              <th className="py-2">Amount</th>
+              <th className="py-2">Category</th>
+              <th className="py-2"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {transactions.map((t) => (
+              <tr key={t.id} className="border-b border-gray-800">
+                <td className="py-2">{t.transaction_date}</td>
+                <td className="py-2">{t.description}</td>
+                <td className="py-2">${t.amount}</td>
+                <td className="py-2">
+                  <select
+                    className="bg-gray-900 border border-gray-700 rounded px-2 py-1"
+                    value={t.category_id ?? ""}
+                    onChange={(e) => handleCategoryChange(t.id, Number(e.target.value))}
+                  >
+                    <option value="" disabled>
+                      {categoryName(t.category_id)}
+                    </option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td className="py-2">
+                  <button
+                    onClick={() => handleDelete(t.id)}
+                    className="text-red-400 hover:text-red-300 text-sm"
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </main>
   );
 }
