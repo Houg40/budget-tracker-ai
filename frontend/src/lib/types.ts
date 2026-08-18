@@ -22,3 +22,13 @@ export interface TransactionCreateInput {
   transaction_date: string;
   category_id?: number | null;
 }
+
+export interface CategorySummary {
+  category: string;
+  total: string;
+}
+
+export interface DailySummary {
+  date: string;
+  total: string;
+}
