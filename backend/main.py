@@ -1,7 +1,9 @@
 import calendar
+import os
 from datetime import date
 from typing import List, Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func
@@ -20,11 +22,20 @@ from schemas import (
     UserRead,
 )
 
+load_dotenv()
+
+# Defaults preserve exactly today's local-dev behavior when these vars are
+# unset — ENVIRONMENT and FRONTEND_URL only need to be set explicitly once
+# this app is actually deployed (Railway/Vercel set them, not .env locally).
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+IS_PRODUCTION = ENVIRONMENT == "production"
+
 app = FastAPI(title="Budget Tracker AI API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[FRONTEND_URL],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -39,8 +50,14 @@ def set_auth_cookie(response: Response, user_id: int) -> None:
         key="access_token",
         value=token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        # SameSite=None + Secure is required for the cookie to survive a
+        # cross-domain request (Vercel frontend -> Railway backend) over
+        # HTTPS. Locally, frontend and backend share the same site
+        # (localhost) over plain HTTP, where SameSite=Lax + not-Secure is
+        # both correct and necessary (Secure cookies are rejected outright
+        # over non-HTTPS by the browser).
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION,
         max_age=COOKIE_MAX_AGE,
     )
 
@@ -126,7 +143,11 @@ def login(payload: UserLogin, response: Response, session: Session = Depends(get
 
 @app.post("/auth/logout")
 def logout(response: Response):
-    response.delete_cookie("access_token")
+    response.delete_cookie(
+        "access_token",
+        samesite="none" if IS_PRODUCTION else "lax",
+        secure=IS_PRODUCTION,
+    )
     return {"status": "logged out"}
 
 
