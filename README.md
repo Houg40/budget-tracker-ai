@@ -13,20 +13,21 @@ over time, all behind a real login so the data is actually private per user.
 - **AI:** Anthropic API (planned — see Roadmap)
 
 ## Features
-- **Authentication:** signup/login/logout with bcrypt-hashed passwords and JWT
-  sessions stored in httpOnly cookies (not accessible to JavaScript, for
-  better protection against XSS token theft)
+- **Authentication:** signup and login pages, backed by bcrypt-hashed passwords
+  and JWT sessions stored in httpOnly cookies (not accessible to JavaScript,
+  for better protection against XSS token theft)
 - **Per-user data isolation:** every account and transaction belongs to a
   single user; the API enforces this at every endpoint, returning a 404
   (never confirming a resource's existence) if you try to touch data that
-  isn't yours
+  isn't yours. Verified with a second test account that cross-user
+  reads/writes/deletes all correctly fail.
 - Full CRUD for transactions (create, view, edit category, delete)
 - Manual category assignment via dropdown, with corrections tracked separately
   from future AI assignments (`user_corrected` flag)
 - Spending dashboard: total spent this month, spending by category (bar chart),
   spending over time (area chart)
 - Seeded default categories, with a default account created automatically on signup
-- Graceful error handling when the API is unreachable
+- Graceful error handling when the API is unreachable or a request fails
 
 ## Running locally
 
@@ -76,25 +77,23 @@ npm run dev
    The app is now running at `http://localhost:3000`.
 
 ### Creating an account
-There's no signup page in the UI yet (see Roadmap). In the meantime, create an
-account via the API docs at `http://localhost:8000/docs`: expand
-`POST /auth/signup`, provide an email and password (minimum 8 characters), and
-execute. A default account is created for you automatically.
+Visit `http://localhost:3000/signup`, enter an email and a password (minimum
+8 characters), and submit. A default account is created for you automatically
+and you're taken straight to the transactions page, logged in.
 
 ## Status
-Backend authentication (signup/login/logout, JWT + httpOnly cookies, and
-per-user data ownership enforcement across every endpoint) is complete and
-tested. Frontend authentication (login/signup pages, session handling) is in
-progress.
+Authentication is complete end to end — backend (signup/login/logout, JWT +
+httpOnly cookies, per-user data ownership enforcement) and frontend
+(login/signup pages, session-aware requests, protected-route redirects) are
+both built and tested.
 
 ## Roadmap
 Planned next, in order:
-1. **Frontend authentication** — login/signup pages, session-aware requests, protected routes
-2. **Deployment** — get the app accessible from anywhere, not just localhost
-3. **Multiple accounts** — UI for managing more than one account per user (checking, savings, credit card, etc.)
-4. **CSV import** — bulk-import transactions from a bank export
-5. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
-6. **Recurring transactions** — auto-log transactions that repeat on a schedule
+1. **Deployment** — get the app accessible from anywhere, not just localhost
+2. **Multiple accounts** — UI for managing more than one account per user (checking, savings, credit card, etc.)
+3. **CSV import** — bulk-import transactions from a bank export
+4. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
+5. **Recurring transactions** — auto-log transactions that repeat on a schedule
 
 Further out / backlog:
 - **AI-assisted categorization** — the schema (`ai_confidence`, `user_corrected`
