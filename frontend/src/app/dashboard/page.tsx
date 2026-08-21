@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BarChart,
   Bar,
@@ -13,6 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { getCategorySummary, getDailySummary } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
 
 const BLUE = "#3987e5";
 const GRID = "#2c2c2a";
@@ -21,12 +23,23 @@ const SURFACE = "#1a1a19";
 const BORDER = "rgba(255,255,255,0.10)";
 
 export default function Dashboard() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
   const [categoryData, setCategoryData] = useState<{ category: string; total: number }[]>([]);
   const [dateData, setDateData] = useState<{ date: string; total: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
+
+  useEffect(() => {
+    if (!user) return;
+
     async function load() {
       try {
         setLoading(true);
@@ -41,9 +54,17 @@ export default function Dashboard() {
       }
     }
     load();
-  }, []);
+  }, [user]);
 
   const totalSpent = categoryData.reduce((sum, c) => sum + c.total, 0);
+
+  if (authLoading || !user) {
+    return (
+      <main className="min-h-screen bg-black text-white p-8">
+        <p className="text-gray-400">Loading...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-black text-white p-8">
