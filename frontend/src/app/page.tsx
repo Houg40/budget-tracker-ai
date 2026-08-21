@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useState, FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import {
   getTransactions,
   getCategories,
+  getAccounts,
   createTransaction,
   updateTransactionCategory,
   deleteTransaction,
 } from "@/lib/api";
 import { Transaction, Category } from "@/lib/types";
-
-const DEFAULT_ACCOUNT_ID = 1;
+import { useAuth } from "@/lib/auth-context";
 
 export default function Home() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [accountId, setAccountId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,13 +27,28 @@ export default function Home() {
   const [amount, setAmount] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
 
+  // Redirect to login once we know for sure there's no session — not before,
+  // since authLoading being true just means "still checking."
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.push("/login");
+    }
+  }, [authLoading, user, router]);
+
   async function loadData() {
     try {
       setLoading(true);
       setError(null);
-      const [txns, cats] = await Promise.all([getTransactions(), getCategories()]);
+      const [txns, cats, accounts] = await Promise.all([
+        getTransactions(),
+        getCategories(),
+        getAccounts(),
+      ]);
       setTransactions(txns);
       setCategories(cats);
+      if (accounts.length > 0) {
+        setAccountId(accounts[0].id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong loading data.");
     } finally {
@@ -36,17 +56,22 @@ export default function Home() {
     }
   }
 
+  // Only load data once we actually have a logged-in user — otherwise this
+  // would fire a doomed request right before the redirect above kicks in.
   useEffect(() => {
-    loadData();
-  }, []);
+    if (user) {
+      loadData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   async function handleAddTransaction(e: FormEvent) {
     e.preventDefault();
-    if (!description || !amount || !date) return;
+    if (!description || !amount || !date || !accountId) return;
 
     try {
       await createTransaction({
-        account_id: DEFAULT_ACCOUNT_ID,
+        account_id: accountId,
         description,
         amount: parseFloat(amount),
         transaction_date: date,
@@ -80,6 +105,16 @@ export default function Home() {
   function categoryName(categoryId: number | null) {
     if (categoryId === null) return "Uncategorized";
     return categories.find((c) => c.id === categoryId)?.name ?? "Uncategorized";
+  }
+
+  // While we're still checking the session, or about to redirect a logged-out
+  // visitor, don't flash the full page — just show a minimal placeholder.
+  if (authLoading || !user) {
+    return (
+      <main className="min-h-screen bg-black text-white p-8">
+        <p className="text-gray-400">Loading...</p>
+      </main>
+    );
   }
 
   return (
@@ -123,7 +158,11 @@ export default function Home() {
             required
           />
         </div>
-        <button type="submit" className="bg-blue-600 hover:bg-blue-500 rounded px-4 py-1 h-9">
+        <button
+          type="submit"
+          disabled={!accountId}
+          className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded px-4 py-1 h-9"
+        >
           Add Transaction
         </button>
       </form>

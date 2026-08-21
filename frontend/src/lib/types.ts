@@ -1,3 +1,17 @@
+export interface User {
+  id: number;
+  email: string;
+  created_at: string;
+}
+
+export interface Account {
+  id: number;
+  user_id: number;
+  name: string;
+  account_type: string;
+  created_at: string;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -31,4 +45,14 @@ export interface CategorySummary {
 export interface DailySummary {
   date: string;
   total: string;
+}
+
+export interface SignupInput {
+  email: string;
+  password: string;
+}
+
+export interface LoginInput {
+  email: string;
+  password: string;
 }
