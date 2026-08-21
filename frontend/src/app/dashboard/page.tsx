@@ -100,7 +100,7 @@ export default function Dashboard() {
                       contentStyle={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 4 }}
                       labelStyle={{ color: "#ffffff" }}
                       itemStyle={{ color: "#ffffff" }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, "Total"]}
+                      formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}`, "Total"]}
                     />
                     <Bar dataKey="total" fill={BLUE} radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -129,7 +129,7 @@ export default function Dashboard() {
                       contentStyle={{ backgroundColor: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 4 }}
                       labelStyle={{ color: "#ffffff" }}
                       itemStyle={{ color: "#ffffff" }}
-                      formatter={(value: number) => [`$${value.toFixed(2)}`, "Total"]}
+                      formatter={(value) => [`$${Number(value ?? 0).toFixed(2)}`, "Total"]}
                     />
                     <Area type="monotone" dataKey="total" stroke={BLUE} strokeWidth={2} fill="url(#colorTotal)" />
                   </AreaChart>
