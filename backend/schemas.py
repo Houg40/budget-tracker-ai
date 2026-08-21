@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlmodel import SQLModel
+from sqlmodel import SQLModel, Field
 
 
 class TransactionCreate(SQLModel):
@@ -28,3 +28,19 @@ class CategorySummary(SQLModel):
 class DailySummary(SQLModel):
     date: date
     total: Decimal
+
+
+class UserSignup(SQLModel):
+    email: str
+    password: str = Field(min_length=8, max_length=72)
+
+
+class UserLogin(SQLModel):
+    email: str
+    password: str
+
+
+class UserRead(SQLModel):
+    id: int
+    email: str
+    created_at: datetime
