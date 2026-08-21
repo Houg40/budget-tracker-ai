@@ -5,11 +5,19 @@ personal finance tools, and to serve as my own real day-to-day budget tracker.
 Log transactions, categorize them, view spending broken down by category and
 over time, all behind a real login so the data is actually private per user.
 
+## Live Demo
+- **App:** https://budget-tracker-ai-five.vercel.app
+- **API docs:** https://budget-tracker-ai-production.up.railway.app/docs
+
+Sign up with any email/password to try it — a default account is created for
+you automatically.
+
 ## Stack
 - **Frontend:** Next.js (App Router, TypeScript, Tailwind CSS), Recharts for data visualization
 - **Backend:** FastAPI (Python)
 - **Database:** PostgreSQL (hosted on Neon), with SQLModel + Alembic for schema and migrations
 - **Auth:** Self-rolled JWT authentication (bcrypt password hashing, httpOnly session cookies)
+- **Hosting:** Vercel (frontend), Railway (backend)
 - **AI:** Anthropic API (planned — see Roadmap)
 
 ## Features
@@ -77,9 +85,10 @@ npm run dev
    The app is now running at `http://localhost:3000`.
 
 ### Creating an account
-Visit `http://localhost:3000/signup`, enter an email and a password (minimum
-8 characters), and submit. A default account is created for you automatically
-and you're taken straight to the transactions page, logged in.
+Visit `http://localhost:3000/signup` (or the live demo's `/signup` page),
+enter an email and a password (minimum 8 characters), and submit. A default
+account is created for you automatically and you're taken straight to the
+transactions page, logged in.
 
 ## Status
 Authentication is complete end to end — backend (signup/login/logout, JWT +
@@ -87,13 +96,17 @@ httpOnly cookies, per-user data ownership enforcement) and frontend
 (login/signup pages, session-aware requests, protected-route redirects) are
 both built and tested.
 
+The app is deployed and live: frontend on Vercel, backend on Railway, sharing
+a single Neon Postgres database. The full auth flow (signup, session
+persistence, logout, login) has been verified against the live URLs, not just
+localhost.
+
 ## Roadmap
 Planned next, in order:
-1. **Deployment** — get the app accessible from anywhere, not just localhost
-2. **Multiple accounts** — UI for managing more than one account per user (checking, savings, credit card, etc.)
-3. **CSV import** — bulk-import transactions from a bank export
-4. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
-5. **Recurring transactions** — auto-log transactions that repeat on a schedule
+1. **Multiple accounts** — UI for managing more than one account per user (checking, savings, credit card, etc.)
+2. **CSV import** — bulk-import transactions from a bank export
+3. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
+4. **Recurring transactions** — auto-log transactions that repeat on a schedule
 
 Further out / backlog:
 - **AI-assisted categorization** — the schema (`ai_confidence`, `user_corrected`
