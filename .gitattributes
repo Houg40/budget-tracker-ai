@@ -1,0 +1,15 @@
+# Normalize all text files to LF line endings on commit, regardless of what
+# line ending an editor or OS wrote to disk. Prevents the CRLF/LF churn that
+# was making diffs show entire files as "changed" when only a few lines
+# actually differed.
+* text=auto eol=lf
+
+# Binary files should never be touched by line-ending normalization.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

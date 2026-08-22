@@ -15,6 +15,7 @@ import {
 } from "@/lib/api";
 import { Transaction, Category, Account } from "@/lib/types";
 import { useAuth } from "@/lib/auth-context";
+import CsvImport from "@/components/CsvImport";
 
 const ACCOUNT_TYPES = [
   { value: "checking", label: "Checking" },
@@ -328,6 +329,8 @@ export default function Home() {
           </button>
         </form>
       </section>
+
+      <CsvImport accounts={accounts} onImported={loadData} />
 
       <div className="flex flex-col mb-4">
         <label className="text-sm text-gray-400">Viewing</label>

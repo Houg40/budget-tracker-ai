@@ -47,6 +47,28 @@ export interface TransactionCreateInput {
   category_id?: number | null;
 }
 
+export interface CsvImportRow {
+  row_number: number;
+  status: "valid" | "error" | "duplicate";
+  description: string;
+  amount: string | null;
+  transaction_date: string | null;
+  error_message: string | null;
+}
+
+export interface CsvImportPreviewResponse {
+  rows: CsvImportRow[];
+  valid_count: number;
+  error_count: number;
+  duplicate_count: number;
+}
+
+export interface CsvImportTransactionInput {
+  description: string;
+  amount: number;
+  transaction_date: string;
+}
+
 export interface CategorySummary {
   category: string;
   total: string;

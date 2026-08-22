@@ -8,6 +8,8 @@ import {
   Account,
   AccountCreateInput,
   AccountUpdateInput,
+  CsvImportPreviewResponse,
+  CsvImportTransactionInput,
   SignupInput,
   LoginInput,
 } from "./types";
@@ -161,4 +163,29 @@ export async function getDailySummary(month?: string): Promise<DailySummary[]> {
     : `${API_URL}/transactions/summary/by-date`;
   const res = await fetch(url, { credentials: "include" });
   return handleResponse<DailySummary[]>(res);
+}
+
+// --- CSV Import ---
+
+export async function previewCsvImport(accountId: number, csvText: string): Promise<CsvImportPreviewResponse> {
+  const res = await fetch(`${API_URL}/transactions/import/preview`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account_id: accountId, csv_text: csvText }),
+  });
+  return handleResponse<CsvImportPreviewResponse>(res);
+}
+
+export async function commitCsvImport(
+  accountId: number,
+  transactions: CsvImportTransactionInput[]
+): Promise<Transaction[]> {
+  const res = await fetch(`${API_URL}/transactions/import/commit`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ account_id: accountId, transactions }),
+  });
+  return handleResponse<Transaction[]>(res);
 }
