@@ -4,6 +4,18 @@ from typing import Optional
 
 from sqlmodel import SQLModel, Field
 
+from models import AccountType
+
+
+class AccountCreate(SQLModel):
+    name: str = Field(min_length=1, max_length=100)
+    account_type: AccountType
+
+
+class AccountUpdate(SQLModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    account_type: Optional[AccountType] = None
+
 
 class TransactionCreate(SQLModel):
     account_id: int

@@ -12,6 +12,16 @@ export interface Account {
   created_at: string;
 }
 
+export interface AccountCreateInput {
+  name: string;
+  account_type: string;
+}
+
+export interface AccountUpdateInput {
+  name?: string;
+  account_type?: string;
+}
+
 export interface Category {
   id: number;
   name: string;
