@@ -36,6 +36,11 @@ you automatically.
   spending over time (area chart)
 - Seeded default categories, with a default account created automatically on signup
 - Graceful error handling when the API is unreachable or a request fails
+- **Multiple accounts:** create, rename, and delete accounts (checking,
+  savings, credit card, etc.); transactions are assigned to a specific
+  account and the transaction list can be filtered to one account or all of
+  them combined. Deleting an account is blocked if it still has transactions,
+  or if it's your only remaining account.
 
 ## Running locally
 
@@ -103,10 +108,9 @@ localhost.
 
 ## Roadmap
 Planned next, in order:
-1. **Multiple accounts** — UI for managing more than one account per user (checking, savings, credit card, etc.)
-2. **CSV import** — bulk-import transactions from a bank export
-3. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
-4. **Recurring transactions** — auto-log transactions that repeat on a schedule
+1. **CSV import** — bulk-import transactions from a bank export
+2. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
+3. **Recurring transactions** — auto-log transactions that repeat on a schedule
 
 Further out / backlog:
 - **AI-assisted categorization** — the schema (`ai_confidence`, `user_corrected`
