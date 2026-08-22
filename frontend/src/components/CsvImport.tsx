@@ -160,7 +160,12 @@ export default function CsvImport({ accounts, onImported }: CsvImportProps) {
         </div>
         <div className="flex flex-col">
           <label className="text-sm text-gray-400">CSV file</label>
-          <input type="file" accept=".csv,text/csv" onChange={handleFileChange} className="text-sm" />
+          <input
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleFileChange}
+            className="text-sm text-gray-400 cursor-pointer file:cursor-pointer file:mr-3 file:h-9 file:rounded file:border-0 file:bg-blue-600 file:px-4 file:text-sm file:font-medium file:text-white hover:file:bg-blue-500"
+          />
         </div>
         <button
           onClick={handlePreview}
