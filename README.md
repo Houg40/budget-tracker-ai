@@ -41,6 +41,14 @@ you automatically.
   account and the transaction list can be filtered to one account or all of
   them combined. Deleting an account is blocked if it still has transactions,
   or if it's your only remaining account.
+- **CSV import:** bulk-import transactions from a bank export. Accepts either a
+  `Date,Description,Amount` layout or a `Date,Description,Debit,Credit` layout.
+  Every row is previewed before anything is saved: unparseable dates, missing
+  descriptions, and invalid amounts are flagged as errors and excluded from
+  import; likely duplicates (matched on date + amount + description against
+  what's already in the account) are flagged and pre-unchecked so re-uploading
+  the same file twice doesn't double-count transactions. Individual rows can
+  also be unchecked by hand before committing.
 
 ## Running locally
 
@@ -106,11 +114,17 @@ a single Neon Postgres database. The full auth flow (signup, session
 persistence, logout, login) has been verified against the live URLs, not just
 localhost.
 
+CSV import is also complete and tested: backend parsing (both column
+formats, malformed-row detection, duplicate detection) and the frontend
+preview/import UI have been verified locally against a full set of test
+files covering valid rows, both column formats, mixed error rows, a
+duplicate re-import, and an empty file. Not yet deployed to the live demo —
+pending a commit and push.
+
 ## Roadmap
 Planned next, in order:
-1. **CSV import** — bulk-import transactions from a bank export
-2. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
-3. **Recurring transactions** — auto-log transactions that repeat on a schedule
+1. **Budgets & overspending alerts** — set a monthly budget per category and get flagged when over
+2. **Recurring transactions** — auto-log transactions that repeat on a schedule
 
 Further out / backlog:
 - **AI-assisted categorization** — the schema (`ai_confidence`, `user_corrected`

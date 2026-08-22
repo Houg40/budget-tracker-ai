@@ -1,6 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import List, Optional
 
 from sqlmodel import SQLModel, Field
 
@@ -30,6 +30,38 @@ class TransactionUpdate(SQLModel):
     amount: Optional[Decimal] = None
     transaction_date: Optional[date] = None
     category_id: Optional[int] = None
+
+
+class CsvImportPreviewRequest(SQLModel):
+    account_id: int
+    csv_text: str
+
+
+class CsvImportRow(SQLModel):
+    row_number: int
+    status: str  # "valid" | "error" | "duplicate"
+    description: str
+    amount: Optional[Decimal] = None
+    transaction_date: Optional[date] = None
+    error_message: Optional[str] = None
+
+
+class CsvImportPreviewResponse(SQLModel):
+    rows: List[CsvImportRow]
+    valid_count: int
+    error_count: int
+    duplicate_count: int
+
+
+class CsvImportTransaction(SQLModel):
+    description: str
+    amount: Decimal
+    transaction_date: date
+
+
+class CsvImportCommitRequest(SQLModel):
+    account_id: int
+    transactions: List[CsvImportTransaction]
 
 
 class CategorySummary(SQLModel):

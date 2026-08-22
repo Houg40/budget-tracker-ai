@@ -10,11 +10,15 @@ from sqlalchemy import func
 from sqlmodel import Session, select
 
 from auth import hash_password, verify_password, create_access_token, get_current_user
+from csv_import import parse_csv
 from database import get_session
 from models import Transaction, Account, AccountType, Category, User
 from schemas import (
     AccountCreate,
     AccountUpdate,
+    CsvImportPreviewRequest,
+    CsvImportPreviewResponse,
+    CsvImportCommitRequest,
     TransactionCreate,
     TransactionUpdate,
     CategorySummary,
@@ -161,8 +165,6 @@ def delete_account(
 ):
     account = _get_owned_account(account_id, current_user, session)
 
-    # Guard 1: don't let transactions get silently orphaned by deleting the
-    # account they belong to. User has to delete/move them first.
     transaction_count = session.exec(
         select(func.count()).select_from(Transaction).where(Transaction.account_id == account_id)
     ).one()
@@ -172,8 +174,6 @@ def delete_account(
             detail="Cannot delete an account that still has transactions. Delete or reassign its transactions first.",
         )
 
-    # Guard 2: the app always needs at least one account to add transactions
-    # to, so don't allow deleting your last one.
     account_count = session.exec(
         select(func.count()).select_from(Account).where(Account.user_id == current_user.id)
     ).one()
@@ -243,6 +243,56 @@ def summary_by_date(
     )
     results = session.exec(statement).all()
     return [DailySummary(date=d, total=total) for d, total in results]
+
+@app.post("/transactions/import/preview", response_model=CsvImportPreviewResponse)
+def preview_csv_import(
+    payload: CsvImportPreviewRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _get_owned_account(payload.account_id, current_user, session)
+
+    existing = session.exec(
+        select(Transaction).where(Transaction.account_id == payload.account_id)
+    ).all()
+    existing_transactions = [
+        {
+            "transaction_date": t.transaction_date,
+            "amount": t.amount,
+            "description": t.description,
+        }
+        for t in existing
+    ]
+
+    result = parse_csv(payload.csv_text, existing_transactions)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
+    return CsvImportPreviewResponse(**result)
+
+@app.post("/transactions/import/commit", response_model=List[Transaction])
+def commit_csv_import(
+    payload: CsvImportCommitRequest,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    _get_owned_account(payload.account_id, current_user, session)
+
+    created = []
+    for item in payload.transactions:
+        transaction = Transaction(
+            account_id=payload.account_id,
+            description=item.description,
+            amount=item.amount,
+            transaction_date=item.transaction_date,
+        )
+        session.add(transaction)
+        created.append(transaction)
+
+    session.commit()
+    for t in created:
+        session.refresh(t)
+    return created
 
 @app.post("/transactions", response_model=Transaction)
 def create_transaction(
