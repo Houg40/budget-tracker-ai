@@ -1,9 +1,15 @@
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from decimal import Decimal
 from enum import Enum
 from typing import Optional
 
 from sqlmodel import SQLModel, Field
+
+
+def _utcnow() -> datetime:
+    # datetime.utcnow() is deprecated (returns a naive datetime with no
+    # tzinfo, which invites bugs); this is the timezone-aware replacement.
+    return datetime.now(timezone.utc)
 
 
 class AccountType(str, Enum):
@@ -20,7 +26,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
     password_hash: str
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
 
 
 class Account(SQLModel, table=True):
@@ -30,7 +36,7 @@ class Account(SQLModel, table=True):
     user_id: int = Field(foreign_key="users.id")
     name: str
     account_type: AccountType
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
 
 
 class Category(SQLModel, table=True):
@@ -51,4 +57,4 @@ class Transaction(SQLModel, table=True):
     transaction_date: date
     ai_confidence: Optional[float] = None
     user_corrected: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=_utcnow)
