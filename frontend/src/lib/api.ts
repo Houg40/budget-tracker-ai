@@ -6,6 +6,8 @@ import {
   DailySummary,
   User,
   Account,
+  AccountCreateInput,
+  AccountUpdateInput,
   SignupInput,
   LoginInput,
 } from "./types";
@@ -72,12 +74,41 @@ export async function getAccounts(): Promise<Account[]> {
   return handleResponse<Account[]>(res);
 }
 
-// --- Transactions ---
+export async function createAccount(input: AccountCreateInput): Promise<Account> {
+  const res = await fetch(`${API_URL}/accounts`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<Account>(res);
+}
 
-export async function getTransactions(): Promise<Transaction[]> {
-  const res = await fetch(`${API_URL}/transactions`, {
+export async function updateAccount(id: number, input: AccountUpdateInput): Promise<Account> {
+  const res = await fetch(`${API_URL}/accounts/${id}`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return handleResponse<Account>(res);
+}
+
+export async function deleteAccount(id: number): Promise<void> {
+  const res = await fetch(`${API_URL}/accounts/${id}`, {
+    method: "DELETE",
     credentials: "include",
   });
+  return handleResponse<void>(res);
+}
+
+// --- Transactions ---
+
+export async function getTransactions(accountId?: number): Promise<Transaction[]> {
+  const url = accountId
+    ? `${API_URL}/transactions?account_id=${accountId}`
+    : `${API_URL}/transactions`;
+  const res = await fetch(url, { credentials: "include" });
   return handleResponse<Transaction[]>(res);
 }
 

@@ -13,6 +13,8 @@ from auth import hash_password, verify_password, create_access_token, get_curren
 from database import get_session
 from models import Transaction, Account, AccountType, Category, User
 from schemas import (
+    AccountCreate,
+    AccountUpdate,
     TransactionCreate,
     TransactionUpdate,
     CategorySummary,
@@ -43,103 +45,65 @@ app.add_middleware(
 
 COOKIE_MAX_AGE = 60 * 60 * 24 * 7  # 7 days, matches JWT_EXPIRE_MINUTES in auth.py
 
-
 def set_auth_cookie(response: Response, user_id: int) -> None:
     token = create_access_token(user_id)
     response.set_cookie(
         key="access_token",
         value=token,
         httponly=True,
-        # SameSite=None + Secure is required for the cookie to survive a
-        # cross-domain request (Vercel frontend -> Railway backend) over
-        # HTTPS. Locally, frontend and backend share the same site
-        # (localhost) over plain HTTP, where SameSite=Lax + not-Secure is
-        # both correct and necessary (Secure cookies are rejected outright
-        # over non-HTTPS by the browser).
         samesite="none" if IS_PRODUCTION else "lax",
         secure=IS_PRODUCTION,
         max_age=COOKIE_MAX_AGE,
     )
 
-
 def _get_owned_account(account_id: int, current_user: User, session: Session) -> Account:
-    """
-    Look up an account and confirm it belongs to current_user.
-    Returns 404 (not 403) if it doesn't exist OR belongs to someone else —
-    this avoids confirming to a caller that an account id exists at all.
-    """
     account = session.get(Account, account_id)
     if not account or account.user_id != current_user.id:
         raise HTTPException(status_code=404, detail=f"Account {account_id} not found")
     return account
 
-
 def _get_owned_transaction(transaction_id: int, current_user: User, session: Session) -> Transaction:
-    """
-    Look up a transaction and confirm the account it belongs to is owned
-    by current_user. Same 404-not-403 reasoning as _get_owned_account.
-    """
     transaction = session.get(Transaction, transaction_id)
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-
     account = session.get(Account, transaction.account_id)
     if not account or account.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Transaction not found")
-
     return transaction
 
-
 def _validate_category(category_id: Optional[int], session: Session) -> None:
-    """
-    If a category_id is provided, confirm it corresponds to a real category
-    before we let it anywhere near an INSERT/UPDATE. Without this, an invalid
-    id (like 0) reaches the database, trips the foreign-key constraint, and
-    surfaces as a raw, unhandled 500 instead of a clean 404.
-
-    None is always valid — it just means "uncategorized" — so it skips this
-    check entirely.
-    """
     if category_id is None:
         return
     category = session.get(Category, category_id)
     if not category:
         raise HTTPException(status_code=404, detail=f"Category {category_id} not found")
 
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
 
 @app.post("/auth/signup", response_model=UserRead, status_code=201)
 def signup(payload: UserSignup, response: Response, session: Session = Depends(get_session)):
     existing = session.exec(select(User).where(User.email == payload.email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="An account with this email already exists")
-
     user = User(email=payload.email, password_hash=hash_password(payload.password))
     session.add(user)
     session.commit()
     session.refresh(user)
-
     default_account = Account(user_id=user.id, name="Default Account", account_type=AccountType.checking)
     session.add(default_account)
     session.commit()
-
     set_auth_cookie(response, user.id)
     return user
-
 
 @app.post("/auth/login", response_model=UserRead)
 def login(payload: UserLogin, response: Response, session: Session = Depends(get_session)):
     user = session.exec(select(User).where(User.email == payload.email)).first()
     if not user or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid email or password")
-
     set_auth_cookie(response, user.id)
     return user
-
 
 @app.post("/auth/logout")
 def logout(response: Response):
@@ -150,11 +114,9 @@ def logout(response: Response):
     )
     return {"status": "logged out"}
 
-
 @app.get("/auth/me", response_model=UserRead)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
-
 
 @app.get("/accounts", response_model=List[Account])
 def list_accounts(
@@ -163,13 +125,67 @@ def list_accounts(
 ):
     return session.exec(select(Account).where(Account.user_id == current_user.id)).all()
 
+@app.post("/accounts", response_model=Account, status_code=201)
+def create_account(
+    payload: AccountCreate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = Account(user_id=current_user.id, name=payload.name, account_type=payload.account_type)
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+@app.patch("/accounts/{account_id}", response_model=Account)
+def update_account(
+    account_id: int,
+    payload: AccountUpdate,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = _get_owned_account(account_id, current_user, session)
+    update_data = payload.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(account, key, value)
+    session.add(account)
+    session.commit()
+    session.refresh(account)
+    return account
+
+@app.delete("/accounts/{account_id}", status_code=204)
+def delete_account(
+    account_id: int,
+    current_user: User = Depends(get_current_user),
+    session: Session = Depends(get_session),
+):
+    account = _get_owned_account(account_id, current_user, session)
+
+    # Guard 1: don't let transactions get silently orphaned by deleting the
+    # account they belong to. User has to delete/move them first.
+    transaction_count = session.exec(
+        select(func.count()).select_from(Transaction).where(Transaction.account_id == account_id)
+    ).one()
+    if transaction_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot delete an account that still has transactions. Delete or reassign its transactions first.",
+        )
+
+    # Guard 2: the app always needs at least one account to add transactions
+    # to, so don't allow deleting your last one.
+    account_count = session.exec(
+        select(func.count()).select_from(Account).where(Account.user_id == current_user.id)
+    ).one()
+    if account_count <= 1:
+        raise HTTPException(status_code=400, detail="Cannot delete your only account.")
+
+    session.delete(account)
+    session.commit()
 
 @app.get("/categories", response_model=List[Category])
 def list_categories(session: Session = Depends(get_session)):
-    # Intentionally NOT scoped to current_user — categories are a shared,
-    # global list in this schema, not per-user data.
     return session.exec(select(Category)).all()
-
 
 @app.get("/transactions/summary/by-category", response_model=List[CategorySummary])
 def summary_by_category(
@@ -182,10 +198,8 @@ def summary_by_category(
     else:
         today = date.today()
         year, mon = today.year, today.month
-
     start = date(year, mon, 1)
     end = date(year, mon, calendar.monthrange(year, mon)[1])
-
     statement = (
         select(Category.name, func.sum(Transaction.amount))
         .select_from(Transaction)
@@ -202,7 +216,6 @@ def summary_by_category(
     results = session.exec(statement).all()
     return [CategorySummary(category=name or "Uncategorized", total=total) for name, total in results]
 
-
 @app.get("/transactions/summary/by-date", response_model=List[DailySummary])
 def summary_by_date(
     month: Optional[str] = Query(default=None, description="YYYY-MM, defaults to current month"),
@@ -214,10 +227,8 @@ def summary_by_date(
     else:
         today = date.today()
         year, mon = today.year, today.month
-
     start = date(year, mon, 1)
     end = date(year, mon, calendar.monthrange(year, mon)[1])
-
     statement = (
         select(Transaction.transaction_date, func.sum(Transaction.amount))
         .select_from(Transaction)
@@ -233,7 +244,6 @@ def summary_by_date(
     results = session.exec(statement).all()
     return [DailySummary(date=d, total=total) for d, total in results]
 
-
 @app.post("/transactions", response_model=Transaction)
 def create_transaction(
     payload: TransactionCreate,
@@ -242,13 +252,11 @@ def create_transaction(
 ):
     _get_owned_account(payload.account_id, current_user, session)
     _validate_category(payload.category_id, session)
-
     transaction = Transaction(**payload.model_dump())
     session.add(transaction)
     session.commit()
     session.refresh(transaction)
     return transaction
-
 
 @app.get("/transactions", response_model=List[Transaction])
 def list_transactions(
@@ -267,7 +275,6 @@ def list_transactions(
         )
     return session.exec(statement).all()
 
-
 @app.get("/transactions/{transaction_id}", response_model=Transaction)
 def get_transaction(
     transaction_id: int,
@@ -275,7 +282,6 @@ def get_transaction(
     session: Session = Depends(get_session),
 ):
     return _get_owned_transaction(transaction_id, current_user, session)
-
 
 @app.patch("/transactions/{transaction_id}", response_model=Transaction)
 def update_transaction(
@@ -285,22 +291,17 @@ def update_transaction(
     session: Session = Depends(get_session),
 ):
     transaction = _get_owned_transaction(transaction_id, current_user, session)
-
     update_data = payload.model_dump(exclude_unset=True)
-
     if "category_id" in update_data:
         _validate_category(update_data["category_id"], session)
         if update_data["category_id"] != transaction.category_id:
             transaction.user_corrected = True
-
     for key, value in update_data.items():
         setattr(transaction, key, value)
-
     session.add(transaction)
     session.commit()
     session.refresh(transaction)
     return transaction
-
 
 @app.delete("/transactions/{transaction_id}", status_code=204)
 def delete_transaction(
